@@ -139,5 +139,3 @@ def export_data():
 
     return send_file(export_path, as_attachment=True, download_name="cleaned_data.csv")
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
