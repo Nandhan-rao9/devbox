@@ -1,0 +1,9 @@
+# Ignore env files in any directory
+.env
+.env.local
+backend/.env
+frontend/.env
+
+# Also ignore python/node junk
+__pycache__/
+node_modules/
