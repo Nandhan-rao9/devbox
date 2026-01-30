@@ -20,7 +20,7 @@ export default function DataOps() {
     setStatus("Uploading...");
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/upload`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: "POST",
         body: formData,
       });
@@ -45,7 +45,7 @@ export default function DataOps() {
     setStatus("Analyzing command...");
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/query`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query }),
@@ -69,7 +69,7 @@ export default function DataOps() {
   };
 
   const handleDownload = () => {
-    window.location.href = `${process.env.REACT_APP_API_URL}/api/export`;
+    window.location.href = `${import.meta.env.VITE_API_URL}/api/export`;
   };
 
   return (
