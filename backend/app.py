@@ -5,23 +5,33 @@ import time
 import re
 import requests
 import google.generativeai as genai
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Configuration
+# --- Configuration ---
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Gemini Configuration
-# NOTE: Keep your API key private in production environments!
-genai.configure(api_key="AIzaSyAL0gOlBwGiStQ4E_8c57w4-3gp4jknDts")
-model = genai.GenerativeModel('gemini-2.0-flash')
+# Use your new verified key here
+API_KEY = "AIzaSyCuWlCHCF4osABLvRMDFQ8B6OhsK49s5pg"
+genai.configure(api_key=API_KEY)
 
-# In-memory storage for the current session's dataframe
+# Confirmed model from your previous check
+model = genai.GenerativeModel('gemini-3-flash-preview')
+
 DATASETS = {}
+
+def clean_sql(text):
+    """Safely extracts SQL from Gemini's response."""
+    # Remove markdown formatting
+    sql = re.sub(r'```sql|```', '', text, flags=re.IGNORECASE).strip()
+    # Remove any trailing semicolons
+    return sql.replace(';', '')
+
+# --- ROUTES ---
 
 # --- API CHECKER LOGIC ---
 @app.route("/api/check", methods=["POST"])
@@ -60,28 +70,20 @@ def check_api():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- DATA ENGINE LOGIC ---
 @app.route("/api/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
-    if not file: 
-        return jsonify({"error": "No file provided"}), 400
+    if not file: return jsonify({"error": "No file"}), 400
 
     try:
-        # Load data based on file extension
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(file)
-        elif file.filename.endswith(('.xls', '.xlsx')):
-            df = pd.read_excel(file)
-        else:
-            return jsonify({"error": "Unsupported file format. Use CSV or Excel."}), 400
+        # Load Data
+        df = pd.read_csv(file) if file.filename.endswith('.csv') else pd.read_excel(file)
         
-        # Sanitize column names: Remove non-alphanumeric chars and replace with underscores
-        # This prevents SQL injection and syntax errors in SQLite
+        # CLEAN COLUMN NAMES: This is crucial for SQL
+        # Replaces spaces/special chars with underscores and keeps them lower case
         df.columns = [re.sub(r'[^\w]', '_', c).strip().lower() for c in df.columns]
         
-        dataset_id = "current_session"
-        DATASETS[dataset_id] = df
+        DATASETS["current_session"] = df
         
         return jsonify({
             "columns": list(df.columns),
@@ -89,45 +91,52 @@ def upload():
             "preview": df.head(10).to_dict(orient="records")
         })
     except Exception as e:
-        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+        print(f"Upload Error: {e}") # Check your console!
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/query", methods=["POST"])
 def query_data():
     user_input = request.json.get("query")
     df = DATASETS.get("current_session")
     
-    if df is None: 
-        return jsonify({"error": "Please upload a dataset first"}), 400
+    if df is None: return jsonify({"error": "Upload data first"}), 400
 
     try:
-        # 1. Generate SQL via Gemini
-        prompt = (
-            f"You are a SQL expert. Return ONLY a valid SQLite query. "
-            f"Table name is 'data'. Columns are: {list(df.columns)}. "
-            f"User request: {user_input}"
-        )
+        # 1. Ask Gemini for SQL
+        prompt = (f"Return ONLY valid SQLite code. Table name is 'data'. "
+                  f"Columns: {list(df.columns)}. Request: {user_input}")
         
         response = model.generate_content(prompt)
-        # Clean the response to ensure only the SQL string remains
-        sql = response.text.replace("```sql", "").replace("```", "").strip()
+        sql = clean_sql(response.text)
         
-        # 2. Execute SQL on the DataFrame using an in-memory SQLite instance
+        # 2. Run SQL on Data
         conn = sqlite3.connect(':memory:')
         df.to_sql('data', conn, index=False)
         result_df = pd.read_sql_query(sql, conn)
         
-        # Optional: Uncomment below to make the query results the "new" active dataset
-        # DATASETS["current_session"] = result_df
-
         return jsonify({
             "sql": sql,
             "preview": result_df.head(15).to_dict(orient="records"),
             "rows": len(result_df)
         })
     except Exception as e:
-        return jsonify({"error": f"Query execution failed: {str(e)}"}), 500
+        print(f"Query Error: {e}") # This shows the real crash in your terminal
+        return jsonify({
+            "error": f"Internal Error: {str(e)}",
+            "sql_attempted": locals().get('sql', 'Failed to generate')
+        }), 500
+    
+# Add this to your Flask app in the backend
+@app.route("/api/export", methods=["GET"])
+def export_data():
+    df = DATASETS.get("current_session")
+    if df is None:
+        return jsonify({"error": "No data to export"}), 400
+
+    export_path = os.path.join(UPLOAD_DIR, "processed_data.csv")
+    df.to_csv(export_path, index=False)
+
+    return send_file(export_path, as_attachment=True, download_name="cleaned_data.csv")
 
 if __name__ == "__main__":
-    # Ensure dependencies are installed: 
-    # pip install flask flask-cors pandas openpyxl requests google-generativeai
     app.run(debug=True, port=5000)
