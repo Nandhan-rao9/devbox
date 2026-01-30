@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState,useEffect } from "react"
+import { saveRequest, getAllRequests, deleteRequest } from "../utils/requestStore"
 
 export default function ApiChecker() {
   const [method, setMethod] = useState("GET")
@@ -7,12 +8,19 @@ export default function ApiChecker() {
   const [body, setBody] = useState("")
   const [response, setResponse] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [saved, setSaved] = useState([])
+  const [saveName, setSaveName] = useState("")
+
 
   function updateHeader(index, field, value) {
     const copy = [...headers]
     copy[index][field] = value
     setHeaders(copy)
   }
+  useEffect(() => {
+  getAllRequests().then(setSaved)
+}, [])
+
 
   function isJson(text) {
   try {
@@ -30,6 +38,25 @@ function formatJson(text) {
     return text
   }
 }
+
+async function handleSave() {
+  if (!saveName || !url) return
+
+  const reqObj = {
+    id: crypto.randomUUID(),
+    name: saveName,
+    method,
+    url,
+    headers: headers.filter(h => h.key),
+    body
+  }
+
+  await saveRequest(reqObj)
+  const all = await getAllRequests()
+  setSaved(all)
+  setSaveName("")
+}
+
 
 function statusColor(status) {
   if (typeof status !== "number") return "text-red-400"
@@ -49,12 +76,19 @@ function statusColor(status) {
 
 async function sendRequest() {
   setLoading(true)
-  setResponse(null)
 
   const headerObj = {}
   headers.forEach(h => {
     if (h.key) headerObj[h.key] = h.value
   })
+
+  if (
+  ["POST", "PUT", "PATCH"].includes(method) &&
+  !headerObj["Content-Type"]
+) {
+  headerObj["Content-Type"] = "application/json"
+}
+
 
   try {
     const res = await fetch("http://localhost:5000/api/check", {
@@ -173,6 +207,21 @@ async function sendRequest() {
         >
           {loading ? "Sending..." : "Send Request"}
         </button>
+        <div className="flex gap-2 mt-4">
+  <input
+    value={saveName}
+    onChange={e => setSaveName(e.target.value)}
+    placeholder="Request name"
+    className="bg-bg border border-muted p-2 rounded flex-1"
+  />
+  <button
+    onClick={handleSave}
+    className="border border-accent text-accent px-4 rounded"
+  >
+    Save
+  </button>
+</div>
+
       </div>
 
       {/* RESPONSE */}
@@ -217,6 +266,52 @@ async function sendRequest() {
     </div>
   )}
 </div>
+
+{saved.length > 0 && (
+  <div className="mt-8 bg-panel border border-muted/30 rounded-lg p-5">
+    <h2 className="text-lg text-accent mb-4">Saved Requests</h2>
+
+    <div className="space-y-3">
+      {saved.map(r => (
+        <div
+          key={r.id}
+          className="flex justify-between items-center border border-muted/20 p-3 rounded"
+        >
+          <div
+            className="cursor-pointer"
+            onClick={() => {
+              setMethod(r.method)
+              setUrl(r.url)
+              setHeaders(
+  r.headers.length
+    ? [...r.headers, { key: "", value: "" }]
+    : [{ key: "", value: "" }]
+)
+
+              setBody(r.body || "")
+              setResponse(null)
+            }}
+          >
+            <p className="text-accent">{r.name}</p>
+            <p className="text-xs text-muted">
+              {r.method} {r.url}
+            </p>
+          </div>
+
+          <button
+            onClick={async () => {
+              await deleteRequest(r.id)
+              setSaved(await getAllRequests())
+            }}
+            className="text-red-400"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
     </div>
   )
 }
