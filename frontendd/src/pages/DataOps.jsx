@@ -1,238 +1,154 @@
-import { useState } from "react"
+import { useState } from "react";
 
 export default function DataOps() {
-  const [file, setFile] = useState(null)
-  const [datasetId, setDatasetId] = useState(null)
-  const [columns, setColumns] = useState([])
-  const [rows, setRows] = useState(0)
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState({ columns: [], rows: 0, preview: [] });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState(null);
 
-  const [dropCols, setDropCols] = useState([])
-  const [removeEmpty, setRemoveEmpty] = useState(false)
-  const [removeDup, setRemoveDup] = useState(false)
+  const onUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const [filter, setFilter] = useState({
-    column: "",
-    op: ">",
-    value: ""
-  })
+    const formData = new FormData();
+    formData.append("file", file);
 
-  const [preview, setPreview] = useState([])
+    setLoading(true);
+    setError(null);
 
-  /* ---------- UPLOAD ---------- */
+    try {
+      const res = await fetch("http://localhost:5000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
 
-  async function uploadFile() {
-    if (!file) return
-
-    const form = new FormData()
-    form.append("file", file)
-
-    const res = await fetch("http://localhost:5000/api/data/upload", {
-      method: "POST",
-      body: form
-    })
-
-    const data = await res.json()
-    setDatasetId(data.dataset_id)
-    setColumns(data.columns)
-    setRows(data.rows)
-  }
-
-  /* ---------- RUN OPS ---------- */
-
-  async function runOps() {
-    if (!datasetId) return
-
-    const ops = []
-
-    if (dropCols.length) {
-      ops.push({ type: "drop_columns", columns: dropCols })
+      setData({ columns: result.columns, rows: result.rows, preview: [] });
+      setStatus("Data Loaded Successfully");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (removeEmpty) ops.push({ type: "remove_empty_rows" })
-    if (removeDup) ops.push({ type: "remove_duplicates" })
+  const runCommand = async () => {
+    if (!query) return;
+    setLoading(true);
+    setError(null);
+    setStatus("Analyzing command...");
 
-    if (filter.column && filter.value !== "") {
-      ops.push({
-        type: "filter",
-        column: filter.column,
-        op: filter.op,
-        value: isNaN(filter.value)
-          ? filter.value
-          : Number(filter.value)
-      })
+    try {
+      const res = await fetch("http://localhost:5000/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+
+      setData((prev) => ({
+        ...prev,
+        preview: result.preview,
+        rows: result.rows,
+      }));
+      setStatus("Execution Complete");
+    } catch (err) {
+      setError(err.message);
+      setStatus("Failed");
+    } finally {
+      setLoading(false);
     }
-
-    const res = await fetch("http://localhost:5000/api/data/operate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dataset_id: datasetId,
-        operations: ops
-      })
-    })
-
-    const data = await res.json()
-    setPreview(data.preview)
-    setRows(data.rows)
-  }
-
-  /* ---------- DOWNLOAD ---------- */
-
-  function download() {
-    window.location.href =
-      `http://localhost:5000/api/data/export/${datasetId}`
-  }
+  };
 
   return (
-    <div className="min-h-screen max-w-6xl mx-auto px-6 py-8">
-      <h1 className="text-3xl text-accent mb-6">Data Ops</h1>
+    <div className="min-h-screen px-6 py-8 max-w-6xl mx-auto">
+      <h1 className="text-3xl text-accent mb-6">Data Engine</h1>
 
-      {/* UPLOAD */}
-      <div className="bg-panel p-4 rounded mb-6">
-        <input
-          type="file"
-          accept=".csv,.xlsx"
-          onChange={e => setFile(e.target.files[0])}
-        />
-        <button
-          onClick={uploadFile}
-          className="ml-4 px-4 py-2 bg-accent text-black rounded"
-        >
-          Upload
-        </button>
-
-        {datasetId && (
-          <p className="mt-2 text-sm text-muted">
-            Columns: {columns.length} | Rows: {rows}
+      {/* COMMAND BAR */}
+      <div className="bg-panel border border-muted/30 rounded-lg p-5 mb-6">
+        <p className="text-sm text-muted mb-3 uppercase tracking-widest font-bold">
+          Command Interface
+        </p>
+        <div className="flex gap-3">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runCommand()}
+            placeholder="e.g. 'Show me the top 10 rows where price is above 100'..."
+            className="flex-1 bg-bg border border-muted p-3 rounded text-white outline-none focus:border-accent transition-colors"
+          />
+          <button
+            onClick={runCommand}
+            disabled={loading}
+            className="bg-accent text-black px-6 py-2 rounded font-bold hover:opacity-90 disabled:opacity-50 transition-all active:scale-95"
+          >
+            {loading ? "..." : "Execute"}
+          </button>
+        </div>
+        
+        {status && !error && (
+          <p className="text-[10px] text-accent mt-3 uppercase font-bold tracking-widest animate-pulse">
+            ● {status}
+          </p>
+        )}
+        {error && (
+          <p className="text-[10px] text-red-400 mt-3 uppercase font-bold tracking-widest">
+            Error: {error}
           </p>
         )}
       </div>
 
-      {/* OPERATIONS */}
-      {datasetId && (
-        <div className="bg-panel p-4 rounded mb-6 space-y-4">
-          <h2 className="text-lg text-accent">Operations</h2>
-
-          {/* DROP COLUMNS */}
-          <div>
-            <p className="text-sm text-muted mb-1">Remove columns</p>
-            <select
-              multiple
-              className="bg-bg border border-muted p-2 rounded w-full"
-              onChange={e =>
-                setDropCols(
-                  Array.from(e.target.selectedOptions, o => o.value)
-                )
-              }
-            >
-              {columns.map(c => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* CHECKBOX OPS */}
-          <div className="flex gap-4">
-            <label>
-              <input
-                type="checkbox"
-                onChange={e => setRemoveEmpty(e.target.checked)}
-              /> Remove empty rows
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                onChange={e => setRemoveDup(e.target.checked)}
-              /> Remove duplicates
-            </label>
-          </div>
-
-          {/* FILTER */}
-          <div className="flex gap-2">
-            <select
-              className="bg-bg border border-muted p-2 rounded"
-              onChange={e =>
-                setFilter({ ...filter, column: e.target.value })
-              }
-            >
-              <option value="">Filter column</option>
-              {columns.map(c => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-
-            <select
-              className="bg-bg border border-muted p-2 rounded"
-              onChange={e => setFilter({ ...filter, op: e.target.value })}
-            >
-              <option>{">"}</option>
-              <option>{"<"}</option>
-              <option>{"=="}</option>
-            </select>
-
-            <input
-              placeholder="Value"
-              className="bg-bg border border-muted p-2 rounded"
-              onChange={e =>
-                setFilter({ ...filter, value: e.target.value })
-              }
-            />
-          </div>
-
-          <button
-            onClick={runOps}
-            className="px-6 py-2 bg-accent text-black rounded"
-          >
-            Run
-          </button>
+      {/* UPLOAD & STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-panel border border-muted/30 rounded-lg p-5">
+          <p className="text-sm text-muted mb-4 font-bold uppercase tracking-widest">Source File</p>
+          <input
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={onUpload}
+            className="block w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-bg file:text-accent hover:file:opacity-80"
+          />
         </div>
-      )}
+        <div className="bg-panel border border-muted/30 rounded-lg p-5 flex flex-col justify-center">
+          <p className="text-sm text-muted uppercase tracking-widest font-bold">Dataset Info</p>
+          <p className="text-2xl text-white mt-1">
+            {data.rows} <span className="text-sm text-muted">Total Rows</span>
+          </p>
+        </div>
+      </div>
 
-      {/* PREVIEW */}
-      {preview.length > 0 && (
-        <div className="bg-panel p-4 rounded">
-          <div className="flex justify-between mb-2">
-            <p className="text-sm text-muted">
-              Preview ({rows} rows)
-            </p>
-            <button
-              onClick={download}
-              className="text-accent underline"
-            >
-              Download CSV
-            </button>
-          </div>
-
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr>
-                {Object.keys(preview[0]).map(h => (
-                  <th
-                    key={h}
-                    className="border-b border-muted p-2 text-left"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {preview.map((row, i) => (
-                <tr key={i}>
-                  {Object.values(row).map((v, j) => (
-                    <td
-                      key={j}
-                      className="border-b border-muted/30 p-2"
-                    >
-                      {String(v)}
-                    </td>
+      {/* RESULTS TABLE */}
+      {data.preview && data.preview.length > 0 && (
+        <div className="bg-panel border border-muted/30 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-bg/50 border-b border-muted/30">
+                <tr>
+                  {Object.keys(data.preview[0] || {}).map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-accent font-bold uppercase tracking-wider">
+                      {h}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-muted/10">
+                {data.preview.map((row, i) => (
+                  <tr key={i} className="hover:bg-bg/30 transition-colors">
+                    {Object.values(row).map((v, j) => (
+                      <td key={j} className="px-4 py-3 text-slate-300">
+                        {v === null ? <span className="text-muted/30">null</span> : String(v)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
-  )
+  );
 }
