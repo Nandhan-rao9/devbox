@@ -14,6 +14,31 @@ export default function ApiChecker() {
     setHeaders(copy)
   }
 
+  function isJson(text) {
+  try {
+    JSON.parse(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function formatJson(text) {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    return text
+  }
+}
+
+function statusColor(status) {
+  if (typeof status !== "number") return "text-red-400"
+  if (status >= 200 && status < 300) return "text-green-400"
+  if (status >= 400 && status < 500) return "text-yellow-400"
+  return "text-red-400"
+}
+
+
   function addHeader() {
     setHeaders([...headers, { key: "", value: "" }])
   }
@@ -151,43 +176,47 @@ async function sendRequest() {
       </div>
 
       {/* RESPONSE */}
-      <div className="bg-panel border border-muted/30 rounded-lg p-5">
-        <h2 className="text-lg text-accent mb-4">Response</h2>
+<div className="bg-panel border border-muted/30 rounded-lg p-5">
+  <h2 className="text-lg text-accent mb-4">Response</h2>
 
-        {!response && (
-          <p className="text-sm text-muted">
-            No response yet.
-          </p>
-        )}
+  {!response && (
+    <p className="text-sm text-muted">
+      No response yet.
+    </p>
+  )}
 
-        {response && (
-          <div className="space-y-3 text-sm">
-            <p>
-              <span className="text-muted">Status:</span>{" "}
-              <span className="text-accent">{response.status}</span>
-            </p>
+  {response && (
+    <div className="space-y-4 text-sm">
+      <p>
+        <span className="text-muted">Status:</span>{" "}
+        <span className={statusColor(response.status)}>
+          {response.status}
+        </span>
+      </p>
 
-            <p>
-              <span className="text-muted">Time:</span>{" "}
-              {response.time}
-            </p>
+      <p>
+        <span className="text-muted">Time:</span>{" "}
+        {response.time}
+      </p>
 
-            <div>
-              <p className="text-muted mb-1">Headers</p>
-              <pre className="bg-bg p-3 rounded text-xs overflow-x-auto">
+      <div>
+        <p className="text-muted mb-1">Headers</p>
+        <pre className="bg-bg p-3 rounded text-xs overflow-x-auto">
 {JSON.stringify(response.headers, null, 2)}
-              </pre>
-            </div>
-
-            <div>
-              <p className="text-muted mb-1">Body</p>
-              <pre className="bg-bg p-3 rounded text-xs overflow-x-auto">
-{response.body}
-              </pre>
-            </div>
-          </div>
-        )}
+        </pre>
       </div>
+
+      <div>
+        <p className="text-muted mb-1">Body</p>
+        <pre className="bg-bg p-3 rounded text-xs overflow-x-auto max-h-96">
+{isJson(response.body)
+  ? formatJson(response.body)
+  : response.body}
+        </pre>
+      </div>
+    </div>
+  )}
+</div>
     </div>
   )
 }
