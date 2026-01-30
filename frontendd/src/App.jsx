@@ -3,7 +3,7 @@ import Home from "./pages/Home"
 import Converter from "./pages/Converter"
 // import Cleaner from "./pages/Cleaner"
 // import ShareOnce from "./pages/ShareOnce"
-// import FormReplay from "./pages/FormReplay"
+import ApiChecker from "./pages/ApiChecker"
 
 export default function App() {
   return (
@@ -14,6 +14,7 @@ export default function App() {
         {/* <Route path="/clean" element={<Cleaner />} />
         <Route path="/share" element={<ShareOnce />} />
         <Route path="/replay" element={<FormReplay />} /> */}
+        <Route path="/api-checker" element={<ApiChecker />} />
       </Routes>
     </BrowserRouter>
   )

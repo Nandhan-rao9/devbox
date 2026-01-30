@@ -24,9 +24,9 @@ export default function Home() {
           path="/share"
         />
         <ToolCard
-          title="Form Replay"
-          desc="Save and reuse form inputs"
-          path="/replay"
+          title="Api checker"
+          desc="check your api endpoints"
+          path="/api-checker"
         />
       </div>
     </div>
