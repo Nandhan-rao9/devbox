@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  /* Richer, more organic palette */
+  --color-bg: #1a1c1e;           /* Deep Charcoal */
+  --color-panel: #25282c;        /* Burnished Steel */
+  --color-accent: #22c55e;       /* Forest Neon (The glow) */
+  --color-accent-hover: #16a34a; 
+  --color-rustic-gold: #d4af37;  /* For hardware/trim details */
+  --color-muted: #94a3b8;
+
+  --shadow-inner-tool: inset 0 2px 4px 0 rgb(0 0 0 / 0.5);
+  --shadow-raised-tool: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-gray-100 font-mono antialiased;
+    background-image: radial-gradient(circle at 2px 2px, #2d3135 1px, transparent 0);
+    background-size: 32px 32px; /* Subtle workbench grid pattern */
+  }
+}
