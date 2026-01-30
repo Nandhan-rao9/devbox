@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import Home from "./pages/Home"
 import Converter from "./pages/Converter"
-// import Cleaner from "./pages/Cleaner"
-// import ShareOnce from "./pages/ShareOnce"
+import DataOps from "./pages/DataOps"
 import ApiChecker from "./pages/ApiChecker"
 
 export default function App() {
@@ -11,9 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/convert" element={<Converter />} />
-        {/* <Route path="/clean" element={<Cleaner />} />
-        <Route path="/share" element={<ShareOnce />} />
-        <Route path="/replay" element={<FormReplay />} /> */}
+        <Route path="/data-ops" element={<DataOps />} />
         <Route path="/api-checker" element={<ApiChecker />} />
       </Routes>
     </BrowserRouter>

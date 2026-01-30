@@ -16,7 +16,7 @@ export default function Home() {
         <ToolCard
           title="Data Cleaner"
           desc="Clean CSV data instantly"
-          path="/clean"
+          path="/data-ops"
         />
         <ToolCard
           title="Share Once"
