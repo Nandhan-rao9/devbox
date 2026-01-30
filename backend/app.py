@@ -15,8 +15,9 @@ CORS(app)
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+API_KEY = os.getenv("GOOGLE_API_KEY") 
 # Use your new verified key here
-API_KEY = "AIzaSyCuWlCHCF4osABLvRMDFQ8B6OhsK49s5pg"
+API_KEY = API_KEY
 genai.configure(api_key=API_KEY)
 
 # Confirmed model from your previous check
